@@ -25,6 +25,7 @@ package org.lomatek.jslint;
 
 import org.openide.util.NbPreferences;
 import org.mozilla.javascript.Context;
+import org.mozilla.javascript.NativeArray;
 import org.mozilla.javascript.Scriptable;
 /**
  *
@@ -36,12 +37,13 @@ public class JSLintOptions {
     
     private static final String NETTE_LOADER_PATH = "nette-loader-path";
     private static final String SANDBOX_PATH = "sandbox-path";
+    private static final String PREDEF = "predef";
     
     private static final String[] OPTIONS = {"devel", "bitwise", "regexp", 
 	"browser", "confusion", "undef", "node", "continue", "unparam", "rhino", 
 	"debug", "sloppy", "widget", "eqeq", "sub", "windows", "es5", "vars", 
 	"evil", "white", "passfail", "forin", "css", "newcap", "cap", "safe", 
-	"nomen", "on", "adsafe", "plusplus", "fragment"};
+	"nomen", "on", "adsafe", "plusplus", "fragment", "predef"};
     private static String directive = null;
     private static Scriptable options = null;
     
@@ -61,18 +63,36 @@ public class JSLintOptions {
     public int getOption(String key, int integer) {
 	return NbPreferences.forModule(JSLintOptions.class).getInt(key, integer);
     }
+    public String getOption(String key, String str){
+        return NbPreferences.forModule(JSLintOptions.class).get(key, str);
+    }
     public void setOption(String key, boolean value) {
 	NbPreferences.forModule(JSLintOptions.class).putBoolean(key, value);
     }
     public void setOption(String key, int value) {
 	NbPreferences.forModule(JSLintOptions.class).putInt(key, value);
     }
+    public void setOption(String key, String value) {
+	NbPreferences.forModule(JSLintOptions.class).put(key, value);
+    }
     public Scriptable getOptions(Context context, Scriptable scope){
 	if (null != options)
 	    return options;
 	options = context.newObject(scope);
 	for (String key : OPTIONS) {
-	    options.put(key, options, getOption(key));
+            if(key.equals(PREDEF)){
+                Object[] opts = getOption(key, "").split(",");
+//                Scriptable arr = context.newArray(scope, opts.length);
+//                Object[] fArgs = new Object[]{ context.newArray(scope, opts) };
+//                for(int i = 0; i< opts.length; i++){
+//                    fArgs[i] = opts[i];
+////                    arr.put(i, scope, opts[i]);
+//                }
+                
+                options.put(key, options, new NativeArray(opts));
+            }else{
+                options.put(key, options, getOption(key));
+            }
 	}
 	if (0 != getOption("maxlen", 0 ))
 	    options.put("maxlen", options, getOption("maxlen", 0 ));
@@ -95,18 +115,24 @@ public class JSLintOptions {
 	    StringBuilder str = new StringBuilder();
 	    str.append("/*jslint ");
 	    for (String key : OPTIONS) {
+                if(key.equals(PREDEF)){
+                    str.append("predef:[");
+                    str.append(getOption(key));
+                    str.append("]");
+                }else{
 		str.append(key);
 		str.append(": ");
 		if (getOption(key)) 
 		    str.append("true, ");
 		else
 		    str.append("false, ");
+                }
 	    }
 	    if (!"0".equals(getOption("maxlen", 0 )))
 		str.append("maxlen: ")
 			.append(getOption("maxlen", 0 ))
 			.append(", ");
-	    str.append("maxerr: ")
+            str.append("maxerr: ")
 		    .append(getOption("maxerr", 50))
 		    .append(",  indent: ")
 		    .append(getOption("indent", 4))
